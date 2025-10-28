@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Disk Scheduling Simulator (no Qt)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 18px; color: #222; }
+  h1 { margin: 0 0 8px 0; }
+  .controls { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:center; }
+  textarea { width: 700px; height: 72px; font-family: monospace; padding:8px; }
+  .panel { background:#f8f9fb; padding:12px; border-radius:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  label { display:inline-block; min-width:110px; }
+  button { padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; background:white; cursor:pointer;}
+  button.primary { background:#0b5fff; color:white; border-color:#0b5fff; }
+  #canvasWrap { margin-top:12px; border-radius:8px; overflow:hidden; background:white; }
+  canvas { display:block; width:100%; height:220px; }
+  .metrics { margin-top:10px; font-size:14px; }
+  .small { font-size:13px; color:#444; }
+  .controls-row { display:flex; gap:8px; align-items:center; }
+</style>
+</head>
+<body>
+  <h1>Disk Scheduling Simulator — Web (no Qt)</h1>
+  <div class="panel">
+    <div style="margin-bottom:8px;" class="small">
+      Enter requests (either cylinders or cylinder:arrival_ms). Examples:
+      <div class="small">`95 180 34 119 11 123 62 64` &nbsp; or &nbsp; `95:0 180:200 34:120 119:50`</div>
+    </div>
+    <textarea id="reqs" placeholder="95 180 34 119 11 123 62 64"></textarea>
+    <div class="controls">
+      <div class="controls-row">
+        <label>Start head</label><input id="startHead" type="number" value="50" style="width:90px" />
+      </div>
+      <div class="controls-row">
+        <label>Max cylinder</label><input id="maxC" type="number" value="199" style="width:90px" />
+      </div>
+      <div class="controls-row">
+        <label>Seek ms / cylinder</label><input id="seekMs" type="number" value="5" style="width:90px" />
+      </div>
+      <div class="controls-row">
+        <label>Direction</label>
+        <select id="dir">
+          <option value="right">Right</option>
+          <option value="left">Left</option>
+        </select>
+      </div>
+      <div style="margin-left:auto" class="controls-row">
+        <button id="fcfs">FCFS</button>
+        <button id="sstf">SSTF</button>
+        <button id="scan">SCAN</button>
+        <button id="cscan">C-SCAN</button>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;">
+      <button id="play" class="primary">Play</button>
+      <button id="pause">Pause</button>
+      <button id="step">Step</button>
+      <button id="reset">Reset</button>
+      <span style="margin-left:14px" class="small">Animation speed multiplier: <input id="speed" type="number" value="1" style="width:60px" /> (1 = real)</span>
+    </div>
+
+    <div id="canvasWrap" class="panel">
+      <canvas id="cv" width="900" height="220"></canvas>
+    </div>
+
+    <div class="metrics panel" id="metrics">Metrics: -</div>
+  </div>
+
+<script>
+/*
+ Disk Scheduling Simulator (plain JS)
+ - no external libs
+ - arrays and simple loops
+ - arrival-aware simulation (arrival times in ms)
+ - animation via requestAnimationFrame
+*/
+
+// ---------- helpers ----------
+function parseRequests(text) {
+  // returns objects: { cyls: [], arrivals: [] }
+  text = text.trim();
+  if (!text) return { cyls: [], arrivals: [] };
+  const parts = text.split(/[\s,;]+/).filter(p=>p.length>0);
+  const cyls = []; const arrivals = [];
+  for (let i=0;i<parts.length;i++){
+    const p = parts[i];
+    if (p.includes(':')) {
+      const [c,a] = p.split(':');
+      const ci = parseInt(c,10);
+      const ai = parseInt(a,10);
+      if (!Number.isNaN(ci) && !Number.isNaN(ai)) { cyls.push(ci); arrivals.push(ai); }
+    } else {
+      const ci = parseInt(p,10);
+      if (!Number.isNaN(ci)) { cyls.push(ci); arrivals.push(0); }
+    }
+  }
+  return { cyls, arrivals };
+}
+
+function clamp(v,a,b){ return v<a? a: (v>b? b: v); }
+
+// ---------- scheduling algorithms (arrival-aware simulation) ----------
+// We'll implement simulators that return:
+// { seq: [cylinder order served], totalTimeMs: number, totalSeek: number }
+
+function totalSeekForSeq(seq, start) {
+  let tot = 0; let cur = start;
+  for (let i=0;i<seq.length;i++){ tot += Math.abs(seq[i]-cur); cur = seq[i]; }
+  return tot;
+}
+
+function simulateFCFS(cyls, arrivals, start, seekMs) {
+  const n = cyls.length;
+  // sort indices by arrival stable
+  const idxs = [...Array(n).keys()];
+  idxs.sort((a,b)=> (arrivals[a] - arrivals[b]) || (a-b));
+  let t = 0; let cur = start; const seq = [];
+  for (let i=0;i<idxs.length;i++){
+    const id = idxs[i];
+    if (arrivals[id] > t) t = arrivals[id];
+    const dist = Math.abs(cyls[id]-cur);
+    t += dist * seekMs;
+    seq.push(cyls[id]);
+    cur = cyls[id];
+  }
+  return { seq, totalTimeMs: t, totalSeek: totalSeekForSeq(seq,start) };
+}
+
+function simulateSSTF(cyls, arrivals, start, seekMs) {
+  const n = cyls.length;
+  const served = Array(n).fill(false);
+  let remaining = n; let cur = start; let t = 0; const seq = [];
+  while (remaining > 0) {
+    let best = -1; let bestDist = 0;
+    for (let i=0;i<n;i++){
+      if (served[i]) continue;
+      if (arrivals[i] <= t) {
+        const d = Math.abs(cyls[i]-cur);
+        if (best === -1 || d < bestDist) { best = i; bestDist = d; }
+      }
+    }
+    if (best === -1) {
+      // advance to next arrival
+      let next = Infinity;
+      for (let i=0;i<n;i++) if (!served[i]) next = Math.min(next, arrivals[i]);
+      t = Math.max(t, next);
+      continue;
+    }
+    t += bestDist * seekMs;
+    seq.push(cyls[best]);
+    served[best] = true; remaining--; cur = cyls[best];
+  }
+  return { seq, totalTimeMs: t, totalSeek: totalSeekForSeq(seq,start) };
+}
+
+function simulateSCAN(cyls, arrivals, start, maxC, dirRight, seekMs, cscan=false) {
+  // Simple event loop: at each step pick the next in direction if available, else reverse or jump
+  const n = cyls.length;
+  const served = Array(n).fill(false);
+  let remaining = n; let cur = start; let t = 0; let dir = dirRight ? 1 : -1;
+  const seq = [];
+  while (remaining > 0) {
+    // find nearest in current direction among arrived
+    let candidate = -1; let candDist = 0;
+    for (let i=0;i<n;i++){
+      if (served[i]) continue;
+      if (arrivals[i] <= t) {
+        if (dir === 1 && cyls[i] >= cur) {
+          const d = cyls[i]-cur;
+          if (candidate === -1 || d < candDist) { candidate = i; candDist = d; }
+        } else if (dir === -1 && cyls[i] <= cur) {
+          const d = cur - cyls[i];
+          if (candidate === -1 || d < candDist) { candidate = i; candDist = d; }
+        }
+      }
+    }
+    if (candidate === -1) {
+      // no pending in this direction
+      let pendingAny = false;
+      for (let i=0;i<n;i++) if (!served[i] && arrivals[i] <= t) { pendingAny = true; break; }
+      if (!pendingAny) {
+        // advance to next arrival
+        let next = Infinity;
+        for (let i=0;i<n;i++) if (!served[i]) next = Math.min(next, arrivals[i]);
+        t = Math.max(t, next);
+        continue;
+      }
+      if (cscan) {
+        // move to end in current direction then jump to other end (we'll model movement to end as time, jump instant)
+        const target = dir === 1 ? maxC : 0;
+        t += Math.abs(target - cur) * seekMs;
+        cur = dir === 1 ? 0 : maxC;
+        continue;
+      } else {
+        dir = -dir; continue;
+      }
+    }
+    // serve candidate
+    t += candDist * seekMs;
+    seq.push(cyls[candidate]);
+    served[candidate] = true; remaining--; cur = cyls[candidate];
+  }
+  return { seq, totalTimeMs: t, totalSeek: totalSeekForSeq(seq,start) };
+}
+
+// ---------- UI and animation ----------
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let deviceW = 880; // logical width for drawing (canvas scaled via CSS)
+function resizeCanvas() {
+  // keep logical size fixed but scale to actual device pixels
+  const rect = cv.getBoundingClientRect();
+  deviceW = Math.max(600, rect.width - 40);
+  cv.width = deviceW + 40;
+  cv.height = 220;
+}
+window.addEventListener('resize', ()=>{ resizeCanvas(); drawStaticScene(); });
+resizeCanvas();
+
+// State for animation
+let animState = { seq: [], start:0, maxC:199, seekMs:5, timeline: [], playing:false, speed:1, curPos:0, curIndex:0, lastTimestamp:0, totalTimeMs:0 };
+
+// draw static: axis + requests + path
+function drawStaticScene() {
+  ctx.clearRect(0,0,cv.width, cv.height);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+  // axis
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(20,140); ctx.lineTo(20 + deviceW,140); ctx.stroke();
+  // draw markers 0, max
+  ctx.fillStyle = '#333'; ctx.font = '12px system-ui';
+  ctx.fillText('0', 16, 160);
+  ctx.fillText(String(animState.maxC), 20 + deviceW - 24, 160);
+  // requests (if any)
+  if (!animState.requestPositions) return;
+  for (let i=0;i<animState.requestPositions.length;i++){
+    const x = animState.requestPositions[i];
+    ctx.fillStyle = '#2b6cb0';
+    ctx.beginPath(); ctx.arc(x,140,6,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.font = '12px monospace';
+    ctx.fillText(animState.requestLabels[i], x-10, 120);
+  }
+  // path lines
+  if (animState.pathX && animState.pathX.length>0) {
+    ctx.strokeStyle = 'rgba(100,100,100,0.6)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(animState.pathStartX,140);
+    for (let i=0;i<animState.pathX.length;i++) ctx.lineTo(animState.pathX[i],140);
+    ctx.stroke();
+  }
+}
+
+// map cyl to X
+function mapX(cyl, maxC) {
+  const margin = 20;
+  return margin + (cyl / maxC) * deviceW;
+}
+
+function prepareAnimation(seq, start, maxC, seekMs, cyls, arrivals) {
+  // Build timeline entries: each step has {from, to, dist, durationMs (dist*seekMs), arrivalWait (if any)}
+  const timeline = [];
+  let cur = start;
+  for (let i=0;i<seq.length;i++){
+    const to = seq[i];
+    const dist = Math.abs(to - cur);
+    const duration = Math.max(30, dist * seekMs); // min for visibility
+    timeline.push({ from: cur, to: to, dist, duration });
+    cur = to;
+  }
+  // create pathX for drawing
+  const pathX = seq.map(s => mapX(s, maxC));
+  const requestPositions = cyls.map(c => mapX(c, maxC));
+  const requestLabels = cyls.map(c => String(c));
+  animState = { seq, start, maxC, seekMs, timeline, playing:true, speed: Number(document.getElementById('speed').value)||1, curPos: mapX(start,maxC), curIndex:0, stepProgress:0, requestPositions, requestLabels, pathX, pathStartX: mapX(start,maxC), totalTimeMs: timeline.reduce((a,b)=>a+b.duration,0) };
+  drawStaticScene();
+  drawHead(animState.curPos);
+}
+
+// draw head at x
+function drawHead(x) {
+  // redraw last frame components and then head
+  drawStaticScene();
+  ctx.fillStyle = '#e11d48'; // red
+  ctx.beginPath(); ctx.arc(x,140,8,0,Math.PI*2); ctx.fill();
+}
+
+// animation frame
+let rafId = null;
+function animateFrame(ts) {
+  if (!animState.playing) { rafId = null; return; }
+  if (!animState.lastTimestamp) animState.lastTimestamp = ts;
+  const dt = ts - animState.lastTimestamp;
+  animState.lastTimestamp = ts;
+  // progress current step
+  if (animState.curIndex >= animState.timeline.length) { animState.playing = false; drawHead(mapX(animState.seq.length?animState.seq[animState.seq.length-1]:animState.start, animState.maxC)); updateMetricsUI(); rafId=null; return; }
+  const step = animState.timeline[animState.curIndex];
+  // stepProgress in ms
+  animState.stepProgress = (animState.stepProgress || 0) + dt * animState.speed;
+  const prog = clamp(animState.stepProgress / step.duration, 0, 1);
+  const fromX = mapX(step.from, animState.maxC);
+  const toX = mapX(step.to, animState.maxC);
+  const curX = fromX + (toX - fromX) * prog;
+  animState.curPos = curX;
+  drawHead(curX);
+  if (prog >= 1) {
+    // move to next
+    animState.curIndex += 1;
+    animState.stepProgress = 0;
+  }
+  rafId = requestAnimationFrame(animateFrame);
+}
+
+// UI handlers
+document.getElementById('fcfs').addEventListener('click', ()=>{
+  runAlgorithm('FCFS');
+});
+document.getElementById('sstf').addEventListener('click', ()=>{ runAlgorithm('SSTF'); });
+document.getElementById('scan').addEventListener('click', ()=>{ runAlgorithm('SCAN'); });
+document.getElementById('cscan').addEventListener('click', ()=>{ runAlgorithm('C-SCAN'); });
+document.getElementById('play').addEventListener('click', ()=>{
+  if (!animState.seq || animState.seq.length===0) return;
+  animState.playing = true; animState.lastTimestamp = 0; if (!rafId) rafId = requestAnimationFrame(animateFrame);
+});
+document.getElementById('pause').addEventListener('click', ()=>{ animState.playing = false; });
+document.getElementById('step').addEventListener('click', ()=>{
+  // advance one step manually
+  if (!animState.seq || animState.seq.length===0) return;
+  if (animState.curIndex >= animState.timeline.length) return;
+  const step = animState.timeline[animState.curIndex];
+  animState.curPos = mapX(step.to, animState.maxC);
+  animState.curIndex += 1;
+  drawHead(animState.curPos);
+});
+document.getElementById('reset').addEventListener('click', ()=>{
+  animState = { seq: [], start:0, maxC:199, seekMs:5, timeline: [], playing:false, speed:1, curPos:0, curIndex:0 };
+  drawStaticScene(); updateMetricsUI();
+});
+
+// run algorithm driver
+function runAlgorithm(name) {
+  const text = document.getElementById('reqs').value;
+  const parsed = parseRequests(text);
+  const cyls = parsed.cyls, arrivals = parsed.arrivals;
+  const start = Number(document.getElementById('startHead').value) || 0;
+  const maxC = Number(document.getElementById('maxC').value) || 199;
+  const seekMs = Number(document.getElementById('seekMs').value) || 5;
+  const dirRight = (document.getElementById('dir').value === 'right');
+  if (cyls.length === 0) { alert('Please enter requests'); return; }
+  for (let i=0;i<cyls.length;i++) {
+    if (cyls[i] < 0 || cyls[i] > maxC) { alert('Requests must be between 0 and max cylinder'); return; }
+  }
+  let result = null;
+  if (name === 'FCFS') result = simulateFCFS(cyls, arrivals, start, seekMs);
+  else if (name === 'SSTF') result = simulateSSTF(cyls, arrivals, start, seekMs);
+  else if (name === 'SCAN') result = simulateSCAN(cyls, arrivals, start, maxC, dirRight, seekMs, false);
+  else if (name === 'C-SCAN') result = simulateSCAN(cyls, arrivals, start, maxC, dirRight, seekMs, true);
+  // prepare animation & metrics
+  prepareAnimation(result.seq, start, maxC, seekMs, cyls, arrivals);
+  updateMetricsUI(result);
+  // start animation
+  animState.playing = true;
+  animState.lastTimestamp = 0; if (!rafId) rafId = requestAnimationFrame(animateFrame);
+}
+
+function updateMetricsUI(result) {
+  const metrics = document.getElementById('metrics');
+  if (!result || !result.seq) {
+    metrics.textContent = 'Metrics: -';
+    return;
+  }
+  const totalSeek = result.totalSeek;
+  const avgSeek = (result.seq.length === 0) ? 0 : (totalSeek / result.seq.length);
+  const timeMs = result.totalTimeMs;
+  const throughput = (timeMs === 0) ? 0 : (result.seq.length / (timeMs / 1000));
+  metrics.innerHTML = `Metrics: <strong>Total seek:</strong> ${totalSeek} &nbsp; <strong>Avg seek:</strong> ${avgSeek.toFixed(2)} &nbsp; <strong>Time:</strong> ${timeMs} ms &nbsp; <strong>Throughput:</strong> ${throughput.toFixed(2)} req/s`;
+}
+
+// initial drawing
+drawStaticScene();
+</script>
+</body>
+</html>
