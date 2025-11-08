@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>🚗 Disk Head Adventure - Dark Mode</title>
+<style>
+  body {
+    font-family: "Comic Sans MS", sans-serif;
+    background: radial-gradient(circle at center, #1a1a2e, #0f0f1a);
+    text-align: center;
+    color: #f1faee;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    color: #00b4d8;
+    margin-top: 20px;
+    text-shadow: 0 0 10px #00b4d8;
+  }
+
+  #gameArea {
+    background: #1b263b;
+    border: 3px solid #00b4d8;
+    height: 350px;
+    width: 850px;
+    margin: 20px auto;
+    border-radius: 25px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,180,216,0.5);
+  }
+
+  .road {
+    position: absolute;
+    top: 175px;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: #0077b6;
+    box-shadow: 0 0 10px #0077b6;
+  }
+
+  .house {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: #0077b6;
+    border-radius: 12px;
+    border: 3px solid #48cae4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 25px;
+    color: white;
+    box-shadow: 0 0 10px #48cae4;
+  }
+
+  .car {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #ef233c;
+    border: 3px solid #000;
+    font-size: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 20px #ef233c;
+  }
+
+  button {
+    font-size: 18px;
+    padding: 10px 25px;
+    border: none;
+    border-radius: 12px;
+    background: #00b4d8;
+    margin: 8px;
+    cursor: pointer;
+    color: white;
+    transition: 0.3s;
+  }
+
+  button:hover {
+    background: #48cae4;
+    box-shadow: 0 0 10px #48cae4;
+  }
+
+  #info {
+    font-size: 20px;
+    color: #caf0f8;
+    margin-top: 10px;
+    min-height: 40px;
+    text-shadow: 0 0 10px #48cae4;
+  }
+
+  #metrics {
+    font-size: 18px;
+    color: #ade8f4;
+    margin-top: 5px;
+  }
+
+  #inputArea {
+    margin-top: 20px;
+  }
+
+  input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    width: 250px;
+    font-size: 16px;
+    background: #1b263b;
+    color: #fff;
+    border: 2px solid #48cae4;
+    text-align: center;
+  }
+
+  input::placeholder {
+    color: #b0d0ff;
+  }
+
+  .axis {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #caf0f8;
+  }
+</style>
+</head>
+<body>
+
+<h1>🚗 Disk Head Adventure - Dark Mode 💿</h1>
+<p>❤️ Red car = Disk Head (reads files)</p>
+<p>🏠 Blue houses = Files waiting to be read</p>
+
+<div id="inputArea">
+  <input id="reqInput" type="text" placeholder="Enter file positions (e.g. 20,45,80,120)">
+  <button onclick="setRequests()">✅ Set Houses</button>
+</div>
+
+<div id="gameArea">
+  <div class="road"></div>
+</div>
+
+<div>
+  <button onclick="run('FCFS')">➡️ FCFS</button>
+  <button onclick="run('SSTF')">🎯 SSTF</button>
+  <button onclick="run('SCAN')">↔️ SCAN</button>
+  <button onclick="run('CSCAN')">🔄 C-SCAN</button>
+</div>
+
+<p id="info">Enter positions and click “Set Houses” to start!</p>
+<p id="metrics"></p>
+
+<script>
+const game = document.getElementById("gameArea");
+const info = document.getElementById("info");
+const metrics = document.getElementById("metrics");
+let REQS = [20, 45, 80, 120, 150, 180];
+const START = 60;
+const MAX = 200;
+let scale = 3.5; // default
+
+function setRequests() {
+  const input = document.getElementById("reqInput").value.trim();
+  if (!input) { info.innerText = "⚠️ Please enter some positions!"; return; }
+  const arr = input.split(",").map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+  if (arr.length === 0) { info.innerText = "❌ Invalid input! Try numbers like 20, 45, 100."; return; }
+  REQS = arr;
+  drawGame();
+  info.innerText = "✅ Houses placed! Choose how the car should drive!";
+  metrics.innerText = "";
+}
+
+function drawGame() {
+  game.innerHTML = '<div class="road"></div>';
+  const maxPos = Math.max(...REQS, MAX);
+  scale = (game.offsetWidth - 60) / maxPos; // dynamic scaling
+
+  // Houses
+  REQS.forEach(r => {
+    const house = document.createElement("div");
+    house.className = "house";
+    house.innerText = "🏠";
+    house.style.left = (r * scale) + "px";
+    house.style.top = "140px";
+    game.appendChild(house);
+  });
+
+  // Car
+  const car = document.createElement("div");
+  car.className = "car";
+  car.id = "car";
+  car.innerText = "🚗";
+  car.style.left = (START * scale) + "px";
+  car.style.top = "130px";
+  game.appendChild(car);
+
+  // Axis / scale markers
+  const axis = document.createElement("div");
+  axis.className = "axis";
+  for (let i = 0; i <= 5; i++) {
+    const mark = document.createElement("span");
+    mark.innerText = Math.round(maxPos * i / 5);
+    axis.appendChild(mark);
+  }
+  game.appendChild(axis);
+}
+
+function moveTo(x, delay = 700) {
+  return new Promise(res => {
+    const car = document.getElementById("car");
+    car.style.transition = `left ${delay/1000}s linear`;
+    car.style.left = (x * scale) + "px";
+    setTimeout(res, delay);
+  });
+}
+
+// Disk scheduling algorithms
+function FCFS(reqs) { return reqs.slice(); }
+
+function SSTF(reqs, start) {
+  let cur = start, left = reqs.slice(), seq = [];
+  while (left.length) {
+    let near = left.reduce((a,b)=>Math.abs(b-cur)<Math.abs(a-cur)?b:a);
+    seq.push(near);
+    left.splice(left.indexOf(near),1);
+    cur = near;
+  }
+  return seq;
+}
+
+function SCAN(reqs, start, max=MAX) {
+  const left = reqs.filter(r=>r<start).sort((a,b)=>b-a);
+  const right = reqs.filter(r=>r>=start).sort((a,b)=>a-b);
+  return [...right, max, ...left];
+}
+
+function CSCAN(reqs, start, max=MAX) {
+  const right = reqs.filter(r=>r>=start).sort((a,b)=>a-b);
+  const left = reqs.filter(r=>r<start).sort((a,b)=>a-b);
+  return [...right, max, 0, ...left];
+}
+
+// Metrics calculation
+function calculateMetrics(seq, start) {
+  let cur = start, totalSeek = 0;
+  seq.forEach(r => { totalSeek += Math.abs(r-cur); cur = r; });
+  const avgSeek = (totalSeek / seq.length).toFixed(2);
+  const throughput = (seq.length / totalSeek).toFixed(3);
+  return { totalSeek, avgSeek, throughput, totalRequests: seq.length };
+}
+
+async function run(type) {
+  drawGame();
+  let seq;
+  if (type==="FCFS") { seq = FCFS(REQS); info.innerText = "➡️ FCFS: Visiting houses in input order!"; }
+  else if (type==="SSTF") { seq = SSTF(REQS, START); info.innerText = "🎯 SSTF: Visiting nearest house first!"; }
+  else if (type==="SCAN") { seq = SCAN(REQS, START); info.innerText = "↔️ SCAN: Moving to end and reversing!"; }
+  else { seq = CSCAN(REQS, START); info.innerText = "🔄 C-SCAN: Moving to end, then jumping to start!"; }
+
+  let cur = START;
+  for (let r of seq) {
+    info.innerText = `🚗 Driving from ${cur} ➡️ ${r}`;
+    await moveTo(r);
+    cur = r;
+  }
+
+  const metricsData = calculateMetrics(seq, START);
+  metrics.innerText = `📊 Requests: ${metricsData.totalRequests} | Total Seek: ${metricsData.totalSeek} | Avg Seek: ${metricsData.avgSeek} | Throughput: ${metricsData.throughput}`;
+  info.innerText = "🎉 All houses visited! Simulation complete!";
+}
+
+drawGame();
+</script>
+
+</body>
+</html>
