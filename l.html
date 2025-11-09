@@ -1,0 +1,355 @@
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>🚗 Disk Scheduling Simulator</title>
+<style>
+  body {
+    font-family: "Comic Sans MS", sans-serif;
+    background: #0d1b2a;
+    text-align: center;
+    color: #e0e1dd;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    color: #3a86ff;
+    margin-top: 20px;
+    font-weight: bold;
+  }
+
+  /* ✅ MAIN LAYOUT FIX */
+  #mainContainer {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    margin: 20px auto;
+    max-width: 1700px;  /* ✅ Increased for wider simulation area */
+    gap: 25px;
+  }
+
+  /* ✅ LEFT PANEL (sequence + metrics) */
+  #leftPanel {
+    width: 300px;
+    background: rgba(0,0,0,0.4);
+    padding: 15px;
+    border-radius: 15px;
+    text-align: left;
+  }
+
+  #sequence {
+    font-size: 18px;
+    line-height: 1.4;
+    background: rgba(0,0,0,0.5);
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+
+  #metrics {
+    font-size: 18px;
+    background: rgba(0,0,0,0.4);
+    padding: 12px;
+    border-radius: 10px;
+    line-height: 1.4;
+  }
+
+  /* ✅ SIMULATION AREA (Increased width) */
+  #gameArea {
+    background: #1b263b;
+    border: 3px solid #3a86ff;
+    height: 350px;
+    width: 1100px;   /* ✅ Increased width */
+    border-radius: 25px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .road {
+    position: absolute;
+    top: 175px;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background: #3a506b;
+  }
+
+  .house {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: #457b9d;
+    border-radius: 12px;
+    border: 3px solid #a8dadc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+  }
+
+  .car {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #e63946;
+    border: 3px solid #222;
+    font-size: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #statusBar {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    color: #a8dadc;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 5px 10px;
+    border-radius: 10px;
+    z-index: 20;
+    min-width: 200px;
+    text-align: center;
+  }
+
+  /* ✅ Buttons */
+  button {
+    font-size: 18px;
+    padding: 10px 25px;
+    border: none;
+    font-weight: bold;
+    border-radius: 12px;
+    background: #3a86ff;
+    margin: 8px;
+    cursor: pointer;
+    color: white;
+    transition: 0.3s;
+    letter-spacing: 1px;
+  }
+
+  button:hover {
+    background: #4361ee;
+  }
+
+  #inputArea {
+    margin-top: 20px;
+  }
+
+  input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    width: 250px;
+    font-size: 16px;
+    background: #1b263b;
+    color: #fff;
+    border: 2px solid #3a86ff;
+    text-align: center;
+  }
+
+  input::placeholder {
+    color: #b0c4de;
+  }
+</style>
+</head>
+<body>
+
+<h1 style="
+    margin-top: 15px;
+    margin-bottom: 15px;
+">🚗 Disk Scheduling Simulator💿</h1>
+<p style="
+    margin-top: 5px;
+    margin-bottom: 5px;
+">❤️ Red car = Disk Head</p>
+<p style="
+    margin-top: 5px;
+    margin-bottom: 5px;
+">🏠 Blue houses = Files waiting to be read</p>
+
+<div id="inputArea" style="
+    margin-top: 8px;
+">
+  <input id="reqInput" type="text" placeholder="Enter file positions (e.g. 20,45,80,120)">
+  <input id="headInput" type="number" placeholder="Initial head position (e.g. 60)" value="60">
+  <button onclick="setRequests()">✅ Set Houses</button>
+</div>
+
+<div id="buttons">
+  <button onclick="run('FCFS')">➡️ FCFS</button>
+  <button onclick="run('SSTF')">🎯 SSTF</button>
+  <button onclick="run('SCAN')">↔️ SCAN</button>
+  <button onclick="run('CSCAN')">🔄 C-SCAN</button>
+</div>
+
+<p id="initialMessage" style="display: none;">Enter positions and click “Set Houses” to start!</p>
+
+<!-- ✅ FIXED STRUCTURE -->
+<div id="mainContainer">
+
+  <div id="leftPanel">
+    <div id="sequence">Sequence:<br>60 → 20 → 45 → 80 → 120 → 150 → 180</div>
+    <div id="metrics">
+    <b>📊 PERFORMANCE METRICS</b><br>
+    Total Requests Served: 6<br>
+    Total Seek Time: 200<br>
+    Average Seek Time: 33.33<br>
+    Throughput: 0.030
+  </div>
+  </div>
+
+  <div id="gameArea"><div class="road"></div><p id="statusBar">✅ Simulation Complete!</p><div class="house" style="left: 94.7px; top: 125.353px;">🏠</div><div class="house" style="left: 213.075px; top: 175.571px;">🏠</div><div class="house" style="left: 378.8px; top: 152.714px;">🏠</div><div class="house" style="left: 568.2px; top: 149.922px;">🏠</div><div class="house" style="left: 710.25px; top: 171.921px;">🏠</div><div class="house" style="left: 852.3px; top: 176.527px;">🏠</div><div class="car" id="car" style="left: 852.3px; top: 130px; transition: left 0.8523s linear;">🚗</div></div>
+
+</div>
+
+<script>
+
+let game = document.getElementById("gameArea");
+let sequence = document.getElementById("sequence");
+let initialMessage = document.getElementById("initialMessage");
+let statusBar = document.getElementById("statusBar");
+let metrics = document.getElementById("metrics");
+
+let REQS = [20, 45, 80, 120, 150, 180];
+let START = 60;
+const MAX = 200;
+let scale = 3.5;
+
+function setRequests() {
+  const input = document.getElementById("reqInput").value.trim();
+  const headVal = parseInt(document.getElementById("headInput").value.trim());
+
+  if (!input) {
+    initialMessage.innerText = "⚠️ Please enter some positions!";
+    return;
+  }
+  if (isNaN(headVal) || headVal < 0 || headVal > MAX) {
+    initialMessage.innerText = "⚠️ Initial head must be between 0 and " + MAX;
+    return;
+  }
+
+  const arr = input.split(",").map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+  if (arr.length === 0) {
+    initialMessage.innerText = "❌ Invalid input!";
+    return;
+  }
+
+  REQS = arr;
+  START = headVal;
+
+  drawGame();
+  initialMessage.innerText = "✅ Houses placed!";
+  metrics.innerText = "";
+  sequence.innerText = "";
+}
+
+function drawGame() {
+  game.innerHTML = '<div class="road"></div><p id="statusBar"></p>';
+  statusBar = document.getElementById("statusBar");
+
+  let maxPos = Math.max(...REQS, MAX, START);
+  scale = (game.offsetWidth - 60) / maxPos;
+
+  REQS.forEach(r => {
+    let house = document.createElement("div");
+    house.className = "house";
+    house.innerText = "🏠";
+    house.style.left = (r * scale) + "px";
+    house.style.top = (100 + Math.random()*80) + "px";
+    game.appendChild(house);
+  });
+
+  let car = document.createElement("div");
+  car.className = "car";
+  car.id = "car";
+  car.innerText = "🚗";
+  car.style.left = (START * scale) + "px";
+  car.style.top = "130px";
+  game.appendChild(car);
+}
+
+function moveTo(x) {
+  return new Promise(res => {
+    let car = document.getElementById("car");
+    let curPos = parseFloat(car.style.left);
+    let newPos = x * scale;
+    let dist = Math.abs(newPos - curPos);
+    let time = dist * 6;
+    car.style.transition = `left ${time/1000}s linear`;
+    car.style.left = newPos + "px";
+    setTimeout(res, time);
+  });
+}
+
+function FCFS(reqs){ return reqs.slice(); }
+function SSTF(reqs,start){
+  let cur=start, arr=reqs.slice(), seq=[];
+  while(arr.length){
+    let near=arr.reduce((a,b)=>Math.abs(b-cur)<Math.abs(a-cur)?b:a);
+    seq.push(near);
+    arr.splice(arr.indexOf(near),1);
+    cur=near;
+  }
+  return seq;
+}
+function SCAN(reqs,start,max=MAX){
+  let left=reqs.filter(r=>r<start).sort((a,b)=>b-a);
+  let right=reqs.filter(r=>r>=start).sort((a,b)=>a-b);
+  return [...right,max,...left];
+}
+function CSCAN(reqs,start,max=MAX){
+  let right=reqs.filter(r=>r>=start).sort((a,b)=>a-b);
+  let left=reqs.filter(r=>r<start).sort((a,b)=>a-b);
+  return [...right,max,0,...left];
+}
+
+function calculateMetrics(seq,start){
+  const filtered=seq.filter(r=>REQS.includes(r));
+  let cur=start,total=0;
+  filtered.forEach(r=>{ total+=Math.abs(r-cur); cur=r; });
+  return {
+    totalSeek:total,
+    avgSeek:(total/filtered.length).toFixed(2),
+    throughput:(filtered.length/total).toFixed(3),
+    totalRequests:filtered.length
+  };
+}
+
+async function run(type) {
+  drawGame();
+  initialMessage.style.display='none';
+
+  let seq =
+    type==="FCFS" ? FCFS(REQS) :
+    type==="SSTF" ? SSTF(REQS,START) :
+    type==="SCAN" ? SCAN(REQS,START) :
+                    CSCAN(REQS,START);
+
+  sequence.innerText = `Sequence:\n${START} → ${seq.join(" → ")}`;
+
+  for (let r of seq) {
+    statusBar.innerText = `Moving to ${r}`;
+    await moveTo(r);
+  }
+
+  const m = calculateMetrics(seq, START);
+  metrics.innerHTML = `
+    <b>📊 PERFORMANCE METRICS</b><br>
+    Total Requests Served: ${m.totalRequests}<br>
+    Total Seek Time: ${m.totalSeek}<br>
+    Average Seek Time: ${m.avgSeek}<br>
+    Throughput: ${m.throughput}
+  `;
+
+  statusBar.innerText = "✅ Simulation Complete!";
+}
+
+drawGame();
+</script>
+
+
+
+</body></html>
