@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Disk Head Adventure - Premium Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg,#0c0e2b,#1a1f38,#2a2f4c); color:#fff; min-height:100vh; padding:20px; position:relative; overflow-x:hidden; }
+        .container { max-width:1600px; margin:0 auto; display:flex; flex-direction:column; gap:25px; }
+        header { text-align:center; padding:20px 0; border-bottom:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); border-radius:15px; backdrop-filter:blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.2); position:relative; overflow:hidden; }
+        header::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:linear-gradient(90deg,#ff7e5f,#feb47b,#3a86ff); }
+        h1 { font-size:2.4rem; margin-bottom:6px; background:linear-gradient(to right,#ff7e5f,#feb47b,#3a86ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:1px; }
+        .subtitle { font-size:1rem; color:#a8dadc; font-weight:300; }
+        .legend { display:flex; justify-content:center; gap:20px; margin-top:10px; }
+        .legend-item { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.08); padding:8px 12px; border-radius:16px; font-size:0.95rem; }
+        .car-indicator{width:14px;height:14px;background:#ff4757;border-radius:50%;box-shadow:0 0 8px rgba(255,71,87,0.7);}
+        .house-indicator{width:14px;height:14px;background:#3742fa;border-radius:2px;box-shadow:0 0 8px rgba(55,66,250,0.7);}
+        .main-content { display:grid; grid-template-columns:1fr 2fr; gap:30px; }
+        .control-panel { background:linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03)); border-radius:15px; padding:20px; box-shadow:0 8px 32px rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); }
+        .input-group { margin-bottom:16px; }
+        label { display:block; margin-bottom:8px; color:#a8dadc; font-weight:500; }
+        input[type="text"], input[type="number"] { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.12); background:rgba(0,0,0,0.35); color:#fff; }
+        .btn { padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:600; margin-right:8px; margin-bottom:8px; }
+        .btn-primary { background:linear-gradient(135deg,#3a86ff,#4361ee); color:#fff; box-shadow:0 4px 15px rgba(58,134,255,0.35); }
+        .algorithms { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+        .btn-algorithm { background:rgba(255,255,255,0.06); padding:12px; border-radius:10px; text-align:center; cursor:pointer; border:1px solid rgba(255,255,255,0.06); }
+        .btn-algorithm.active{ background:linear-gradient(135deg,rgba(58,134,255,0.35),rgba(67,97,238,0.4)); box-shadow:0 0 12px rgba(58,134,255,0.25); }
+        /* Direction toggle (Style B) */
+        .direction-row { display:flex; align-items:center; gap:12px; margin-top:16px; }
+        .dir-label { color:#a8dadc; font-weight:600; }
+        .toggle { background:rgba(255,255,255,0.06); padding:6px; border-radius:999px; display:inline-flex; gap:6px; align-items:center; }
+        .toggle button { background:transparent; border:none; color:#a8dadc; padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:600; }
+        .toggle button.active { background:linear-gradient(135deg,#3a86ff,#4361ee); color:#fff; box-shadow:0 4px 12px rgba(58,134,255,0.25); }
+        .visualization-area { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        .visualization { background:linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03)); border-radius:15px; padding:18px; box-shadow:0 8px 32px rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; }
+        .road-container { position:relative; height:200px; background:rgba(0,0,0,0.28); border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:inset 0 0 10px rgba(0,0,0,0.5); }
+        .road { position:absolute; top:50%; left:0; right:0; height:30px; background:#3a506b; transform:translateY(-50%); display:flex; align-items:center; }
+        .road-line { position:absolute; top:50%; left:0; right:0; height:2px; background:repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.7) 10px, rgba(255,255,255,0.7) 20px); transform:translateY(-50%); }
+        .car { position:absolute; top:50%; left:10%; width:60px; height:40px; background:#ff4757; border-radius:8px 8px 0 0; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; box-shadow:0 0 15px rgba(255,71,87,0.7); z-index:10; transition:left 1s linear; }
+        .car .wheel { position:absolute; bottom:-12px; width:16px; height:16px; background:#333; border-radius:50%; animation:wheel-rotate 0.5s linear infinite; }
+        .car .wheel.front { right:10px; } .car .wheel.back { left:10px; }
+        @keyframes wheel-rotate { 0%{transform:rotate(0deg)}100%{transform:rotate(360deg)} }
+        .house { position:absolute; top:50%; width:40px; height:40px; background:#3742fa; transform:translate(-50%,-50%); border-radius:2px; box-shadow:0 0 12px rgba(55,66,250,0.7); z-index:5; display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; font-weight:bold; transition:all 0.4s ease; }
+        .house.current{ background:#ffd166; transform:translate(-50%,-50%) scale(1.25); box-shadow:0 0 20px rgba(255,209,102,0.9); }
+        .house.visited{ background:#2ed573; transform:translate(-50%,-50%) scale(1.15); box-shadow:0 0 18px rgba(46,213,115,0.8); }
+        .status-bar { position:absolute; top:10px; left:50%; transform:translateX(-50%); font-size:15px; color:#a8dadc; background:rgba(0,0,0,0.7); padding:8px 16px; border-radius:10px; z-index:20; min-width:220px; text-align:center; border:1px solid rgba(255,255,255,0.06); }
+        .progress-container{ margin-top:10px; background:rgba(0,0,0,0.28); border-radius:10px; height:10px; overflow:hidden; box-shadow:inset 0 0 5px rgba(0,0,0,0.5); }
+        .progress-bar{ height:100%; width:0%; background:linear-gradient(to right,#3a86ff,#4361ee,#7209b7); transition:width 0.4s ease; box-shadow:0 0 10px rgba(58,134,255,0.4); }
+        .graph-container { background:linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03)); border-radius:15px; padding:18px; box-shadow:0 8px 32px rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; }
+        .graph-canvas { width:100%; height:300px; background:rgba(0,0,0,0.24); border-radius:8px; }
+        .algorithm-comparison { margin-top:14px; background:rgba(0,0,0,0.24); padding:12px; border-radius:10px; border-left:4px solid #ffd166; }
+        .metrics-container { margin-top:12px; background:rgba(0,0,0,0.24); padding:12px; border-radius:10px; border-left:4px solid:#2ed573; }
+        .footer{ text-align:center; padding:14px; margin-top:16px; color:#a8dadc; background:rgba(255,255,255,0.02); border-radius:10px; border-top:1px solid rgba(255,255,255,0.04); }
+        @media(max-width:1200px){ .visualization-area{ grid-template-columns:1fr; } }
+        @media(max-width:768px){ .main-content{ grid-template-columns:1fr; } .car{ transform:translate(-50%,-50%) scale(0.9); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Disk Head Adventure – Premium Edition</h1>
+            <p class="subtitle">Disk Scheduling Algorithm Visualization</p>
+            <div class="legend">
+                <div class="legend-item"><div class="car-indicator"></div><span>Disk Head (Car)</span></div>
+                <div class="legend-item"><div class="house-indicator"></div><span>Requests (Houses)</span></div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="control-panel">
+                <div class="input-group">
+                    <label for="positions">Enter file positions (e.g. 25,70,110,180)</label>
+                    <input type="text" id="positions" placeholder="25,70,110,180">
+                </div>
+
+                <div class="input-group">
+                    <label for="headInput">Initial head position (0-199)</label>
+                    <input type="number" id="headInput" min="0" max="199" value="60">
+                </div>
+
+                <button class="btn btn-primary" id="set-houses">Set Houses</button>
+
+                <div class="algorithms" style="margin-top:12px;">
+                    <div class="btn-algorithm" data-algorithm="FCFS">➡️ FCFS</div>
+                    <div class="btn-algorithm" data-algorithm="SSTF">🎯 SSTF</div>
+                    <div class="btn-algorithm" data-algorithm="SCAN">↔️ SCAN</div>
+                    <div class="btn-algorithm" data-algorithm="C-SCAN">🔄 C-SCAN</div>
+                </div>
+
+                <!-- Direction Toggle (Style B) -->
+                <div class="direction-row">
+                    <div class="dir-label">Direction:</div>
+                    <div class="toggle" id="directionToggle" aria-hidden="true">
+                        <button id="dir-right" class="active" title="Move Right First">➡️ RIGHT</button>
+                        <button id="dir-left" title="Move Left First">⬅️ LEFT</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="visualization-area">
+                <div class="visualization">
+                    <div class="road-container">
+                        <div class="road">
+                            <div class="road-line"></div>
+                            <div class="car" id="car">
+                                <div class="wheel front"></div>
+                                <div class="wheel back"></div>
+                            </div>
+                            <!-- Houses appended here -->
+                        </div>
+                        <div class="status-bar" id="statusBar">Ready to simulate</div>
+                    </div>
+
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+
+                    <div class="simulation-info">
+                        <div class="info-title">Simulation Information</div>
+                        <div class="info-content" id="simulation-info">Enter positions and select an algorithm to start simulation.</div>
+                    </div>
+
+                    <div class="metrics-container">
+                        <div class="info-title">Performance Metrics</div>
+                        <div class="info-content" id="metrics">No simulation data yet.</div>
+                    </div>
+                </div>
+
+                <div class="graph-container">
+                    <div class="graph-title">Disk Head Movement Visualization</div>
+                    <div class="graph-canvas" style="margin-top:8px;">
+                        <canvas id="movementGraph" style="width:100%; height:100%;"></canvas>
+                    </div>
+
+                    <div class="algorithm-comparison" id="algorithmComparison" style="margin-top:12px;">
+                        <div class="comparison-title">Algorithm Comparison</div>
+                        <div class="comparison-content">Run different algorithms to compare their performance.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Disk Head Adventure - Professional Disk Scheduling Simulator
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const positionsInput = document.getElementById('positions');
+        const headInput = document.getElementById('headInput');
+        const setHousesBtn = document.getElementById('set-houses');
+        const algorithmBtns = document.querySelectorAll('.btn-algorithm');
+        const car = document.getElementById('car');
+        const road = document.querySelector('.road');
+        const simulationInfo = document.getElementById('simulation-info');
+        const statusBar = document.getElementById('statusBar');
+        const metrics = document.getElementById('metrics');
+        const progressBar = document.getElementById('progressBar');
+        const algorithmComparison = document.getElementById('algorithmComparison');
+        const dirRightBtn = document.getElementById('dir-right');
+        const dirLeftBtn = document.getElementById('dir-left');
+
+        // Graph
+        const graphCanvas = document.getElementById('movementGraph');
+        const ctx = graphCanvas.getContext('2d');
+
+        // State
+        let requests = [];
+        let currentAlgorithm = null;
+        const MAX_TRACK = 199;
+        const MIN_TRACK = 0;
+        let scale = 1;
+        let isAnimating = false;
+        let direction = 'RIGHT'; // default
+
+        // Initialize graph
+        initializeGraph();
+
+        // Direction toggle handlers
+        function setDirection(dir) {
+            direction = dir;
+            if (dir === 'RIGHT') {
+                dirRightBtn.classList.add('active');
+                dirLeftBtn.classList.remove('active');
+            } else {
+                dirLeftBtn.classList.add('active');
+                dirRightBtn.classList.remove('active');
+            }
+        }
+        dirRightBtn.addEventListener('click', () => setDirection('RIGHT'));
+        dirLeftBtn.addEventListener('click', () => setDirection('LEFT'));
+
+        // Set houses
+        setHousesBtn.addEventListener('click', () => {
+            if (isAnimating) { alert('Please wait for the current simulation to finish'); return; }
+
+            const positionsText = positionsInput.value.trim();
+            const headVal = parseInt(headInput.value);
+
+            if (!positionsText) { alert('Please enter positions'); return; }
+            if (isNaN(headVal) || headVal < MIN_TRACK || headVal > MAX_TRACK) {
+                alert(`Initial head must be between ${MIN_TRACK} and ${MAX_TRACK}`);
+                return;
+            }
+
+            requests = positionsText.split(',').map(pos => parseInt(pos.trim())).filter(pos => !isNaN(pos) && pos >= MIN_TRACK && pos <= MAX_TRACK);
+            if (requests.length === 0) { alert('No valid positions found'); return; }
+
+            // clear houses
+            document.querySelectorAll('.house').forEach(el => el.remove());
+
+            // scale uses full track range
+            scale = (road.offsetWidth - 60) / (MAX_TRACK || 1);
+
+            // add houses
+            requests.forEach(pos => {
+                const house = document.createElement('div');
+                house.className = 'house';
+                house.style.left = (pos * scale) + 30 + "px";
+                house.setAttribute('data-position', pos);
+                house.textContent = pos;
+                road.appendChild(house);
+            });
+
+            // position car
+            car.style.left = (headVal * scale) + 30 + "px";
+
+            simulationInfo.textContent = `Houses set at positions: ${requests.join(', ')}. Select an algorithm to start simulation.`;
+            statusBar.textContent = "Houses placed! Select an algorithm.";
+            metrics.textContent = "No simulation data yet.";
+            progressBar.style.width = '0%';
+
+            // reset algorithm buttons
+            algorithmBtns.forEach(btn => btn.classList.remove('active'));
+            initializeGraph();
+        });
+
+        // Algorithm buttons
+        algorithmBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (isAnimating) { alert('Please wait for the current simulation to finish'); return; }
+                if (requests.length === 0) { alert('Please set houses first'); return; }
+
+                algorithmBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                currentAlgorithm = this.getAttribute('data-algorithm');
+                runSimulation(currentAlgorithm);
+            });
+        });
+
+        // Run simulation
+        function runSimulation(algorithm) {
+            isAnimating = true;
+            document.querySelectorAll('.house').forEach(house => house.classList.remove('visited', 'current'));
+
+            const initialHead = parseInt(headInput.value);
+            let sequence = [];
+
+            switch(algorithm) {
+                case 'FCFS': sequence = FCFS(requests); break;
+                case 'SSTF': sequence = SSTF(requests, initialHead); break;
+                case 'SCAN': sequence = SCAN(requests, initialHead, MIN_TRACK, MAX_TRACK, direction); break;
+                case 'C-SCAN': sequence = CSCAN(requests, initialHead, MIN_TRACK, MAX_TRACK, direction); break;
+            }
+
+            const totalMovement = calculateTotalMovement([initialHead, ...sequence]);
+
+            simulationInfo.innerHTML = `<strong>Algorithm:</strong> ${algorithm}<br>
+                <strong>Direction:</strong> ${direction}<br>
+                <strong>Sequence:</strong> ${initialHead} → ${sequence.join(" → ")}<br>
+                <strong>Total Head Movement:</strong> ${totalMovement} tracks`;
+
+            drawMovementGraph([initialHead, ...sequence], algorithm);
+            updateAlgorithmComparison(algorithm, totalMovement);
+            animateCar(sequence, initialHead, algorithm);
+        }
+
+        // Animation
+        async function animateCar(sequence, initialHead, algorithm) {
+            statusBar.textContent = `Running ${algorithm} algorithm...`;
+            progressBar.style.width = '0%';
+            let currentPosition = initialHead;
+            let totalSteps = sequence.length || 1;
+
+            for (let i = 0; i < sequence.length; i++) {
+                const targetPos = sequence[i];
+                progressBar.style.width = `${(i / totalSteps) * 100}%`;
+
+                // highlight only actual requests
+                document.querySelectorAll('.house').forEach(house => {
+                    house.classList.remove('current');
+                    if (parseInt(house.getAttribute('data-position')) === targetPos) {
+                        house.classList.add('current');
+                    }
+                });
+
+                statusBar.textContent = `Moving from ${currentPosition} to ${targetPos}`;
+
+                // If this step is a jump (C-SCAN) and it moves from MAX->MIN or MIN->MAX, we animate differently:
+                const isJump = (Math.abs(targetPos - currentPosition) > (MAX_TRACK * 0.6)) && ( (algorithm === 'C-SCAN') );
+
+                if (isJump) {
+                    // simple fade-out + teleport + fade-in effect
+                    car.style.transition = `opacity 250ms linear`;
+                    car.style.opacity = '0';
+                    await new Promise(r => setTimeout(r, 260));
+                    car.style.left = (targetPos * scale) + 30 + "px";
+                    car.style.opacity = '1';
+                    // restore default transition for normal moves
+                    await new Promise(r => setTimeout(r, 200));
+                } else {
+                    await moveTo(targetPos, currentPosition);
+                }
+
+                if (requests.includes(targetPos)) {
+                    const house = document.querySelector(`.house[data-position="${targetPos}"]`);
+                    if (house) { house.classList.remove('current'); house.classList.add('visited'); }
+                }
+
+                currentPosition = targetPos;
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+
+            progressBar.style.width = '100%';
+            statusBar.textContent = "✅ Simulation Complete!";
+            isAnimating = false;
+
+            const m = calculateMetrics(sequence, initialHead);
+            metrics.innerHTML = `<b>📊 PERFORMANCE METRICS</b><br>
+                Total Requests Served: ${m.totalRequests}<br>
+                Total Seek Time: ${m.totalSeek}<br>
+                Average Seek Time: ${m.avgSeek}<br>
+                Throughput: ${m.throughput}`;
+        }
+
+        // moveTo helper
+        function moveTo(targetPos, currentPos) {
+            return new Promise(resolve => {
+                const distance = Math.abs(targetPos - currentPos);
+                const duration = Math.max(300, (distance / 60) * 1000); // tweak for smoothness
+                car.style.transition = `left ${duration}ms linear`;
+                car.style.left = (targetPos * scale) + 30 + "px";
+                const wheels = document.querySelectorAll('.wheel');
+                wheels.forEach(w => w.style.animation = `wheel-rotate ${Math.max(300, duration)}ms linear infinite`);
+                setTimeout(() => resolve(), duration);
+            });
+        }
+
+        // Algorithms
+        function FCFS(reqs) { return [...reqs]; }
+
+        function SSTF(reqs, start) {
+            let cur = start;
+            let arr = [...reqs];
+            let seq = [];
+            while (arr.length > 0) {
+                let nearest = arr.reduce((a,b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
+                seq.push(nearest);
+                arr.splice(arr.indexOf(nearest),1);
+                cur = nearest;
+            }
+            return seq;
+        }
+
+        // Standard SCAN (textbook), supports direction
+        function SCAN(reqs, start, minTrack, maxTrack, dir='RIGHT') {
+            const sorted = [...reqs].sort((a,b)=>a-b);
+            let left = sorted.filter(r => r < start);
+            let right = sorted.filter(r => r >= start);
+            let seq = [];
+
+            if (dir === 'RIGHT') {
+                seq = [...right];
+                if (seq.length === 0 || seq[seq.length-1] !== maxTrack) seq.push(maxTrack);
+                seq.push(...left.reverse());
+            } else {
+                // LEFT
+                seq = [...left.reverse()];
+                if (seq.length === 0 || seq[seq.length-1] !== minTrack) seq.push(minTrack);
+                seq.push(...right);
+            }
+            return seq;
+        }
+
+        // Standard C-SCAN (textbook), supports direction
+        function CSCAN(reqs, start, minTrack, maxTrack, dir='RIGHT') {
+            const sorted = [...reqs].sort((a,b)=>a-b);
+            let left = sorted.filter(r => r < start);
+            let right = sorted.filter(r => r >= start);
+            let seq = [];
+
+            if (dir === 'RIGHT') {
+                seq = [...right];
+                if (seq.length === 0 || seq[seq.length-1] !== maxTrack) seq.push(maxTrack);
+                // jump to minTrack (include to show teleport)
+                seq.push(minTrack);
+                seq.push(...left);
+            } else {
+                // LEFT direction: serve left, go to min, jump to max, serve right
+                seq = [...left.reverse()];
+                if (seq.length === 0 || seq[seq.length-1] !== minTrack) seq.push(minTrack);
+                seq.push(maxTrack);
+                seq.push(...right);
+            }
+
+            return seq;
+        }
+
+        // Metrics helpers
+        function calculateTotalMovement(sequence) {
+            let total = 0;
+            for (let i = 1; i < sequence.length; i++) total += Math.abs(sequence[i] - sequence[i-1]);
+            return total;
+        }
+
+        function calculateMetrics(seq, start) {
+            const filtered = seq.filter(r => requests.includes(r));
+            let cur = start; let total = 0;
+            seq.forEach(r => { total += Math.abs(r - cur); cur = r; });
+            return {
+                totalSeek: total,
+                avgSeek: filtered.length ? (total / filtered.length).toFixed(2) : '0.00',
+                throughput: total > 0 ? (filtered.length / total).toFixed(3) : '—',
+                totalRequests: filtered.length
+            };
+        }
+
+        // Graphing
+        function initializeGraph() {
+            graphCanvas.width = graphCanvas.offsetWidth;
+            graphCanvas.height = graphCanvas.offsetHeight;
+            ctx.clearRect(0,0,graphCanvas.width,graphCanvas.height);
+            ctx.fillStyle = '#a8dadc';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Run a simulation to see the disk head movement graph', graphCanvas.width/2, graphCanvas.height/2);
+        }
+
+        function drawMovementGraph(sequence, algorithm) {
+            graphCanvas.width = graphCanvas.offsetWidth;
+            graphCanvas.height = graphCanvas.offsetHeight;
+            ctx.clearRect(0,0,graphCanvas.width,graphCanvas.height);
+
+            const padding = 40;
+            const graphWidth = graphCanvas.width - padding*2;
+            const graphHeight = graphCanvas.height - padding*2;
+            const minTrack = MIN_TRACK;
+            const maxTrack = MAX_TRACK;
+            const trackRange = Math.max(1, maxTrack - minTrack);
+
+            const xScale = graphWidth / (sequence.length - 1 || 1);
+            const yScale = graphHeight / trackRange;
+
+            // axes
+            ctx.strokeStyle = '#a8dadc'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(padding, padding+graphHeight); ctx.lineTo(padding+graphWidth, padding+graphHeight);
+            ctx.moveTo(padding,padding); ctx.lineTo(padding,padding+graphHeight); ctx.stroke();
+
+            // x labels
+            ctx.fillStyle='#a8dadc'; ctx.font='12px Arial'; ctx.textAlign='center';
+            for (let i=0; i<sequence.length; i++) {
+                const x = padding + i*xScale; ctx.fillText(i, x, padding+graphHeight+15);
+            }
+
+            // y ticks
+            const ticks = 6;
+            for (let t=0; t<=ticks; t++) {
+                const val = Math.round(minTrack + (t/ticks)*(maxTrack-minTrack));
+                const y = padding + graphHeight - (val - minTrack)*yScale;
+                ctx.fillText(val, padding - 18, y+4);
+                ctx.strokeStyle = 'rgba(168,218,220,0.12)'; ctx.beginPath(); ctx.moveTo(padding,y); ctx.lineTo(padding+graphWidth,y); ctx.stroke();
+            }
+
+            // line
+            ctx.strokeStyle = getAlgorithmColor(algorithm); ctx.lineWidth=3; ctx.beginPath();
+            for (let i=0;i<sequence.length;i++){
+                const x = padding + i*xScale;
+                const y = padding + graphHeight - (sequence[i]-minTrack)*yScale;
+                if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+
+            // points
+            for (let i=0;i<sequence.length;i++){
+                const x = padding + i*xScale;
+                const y = padding + graphHeight - (sequence[i]-minTrack)*yScale;
+                ctx.fillStyle = (i===0) ? '#ff4757' : (i===sequence.length-1 ? '#2ed573' : getAlgorithmColor(algorithm));
+                ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
+                if (i===0 || i===sequence.length-1 || requests.includes(sequence[i])) {
+                    ctx.fillStyle='#a8dadc'; ctx.font='10px Arial'; ctx.fillText(sequence[i], x, y-10);
+                }
+            }
+
+            ctx.fillStyle='#feb47b'; ctx.font='bold 16px Arial'; ctx.textAlign='center';
+            ctx.fillText(`${algorithm} Algorithm - Head Movement`, graphCanvas.width/2, padding-8);
+        }
+
+        function getAlgorithmColor(algorithm) {
+            switch(algorithm) {
+                case 'FCFS': return '#3a86ff';
+                case 'SSTF': return '#ff9e00';
+                case 'SCAN': return '#9d4edd';
+                case 'C-SCAN': return '#f72585';
+                default: return '#3a86ff';
+            }
+        }
+
+        function updateAlgorithmComparison(algorithm, totalMovement) {
+            let efficiency='', useCase='';
+            switch(algorithm){
+                case 'FCFS': efficiency='Low efficiency, high fairness'; useCase='Simple systems with no performance requirements'; break;
+                case 'SSTF': efficiency='High efficiency, low fairness'; useCase='Systems where performance is critical'; break;
+                case 'SCAN': efficiency='Good efficiency and fairness'; useCase='General purpose systems'; break;
+                case 'C-SCAN': efficiency='Good efficiency, better fairness than SCAN'; useCase='Systems requiring uniform service'; break;
+            }
+            algorithmComparison.innerHTML = `<b>${algorithm} Algorithm</b><br><b>Direction:</b> ${direction}<br><b>Efficiency:</b> ${efficiency}<br><b>Total Movement:</b> ${totalMovement} tracks<br><b>Best Use Case:</b> ${useCase}`;
+        }
+
+        // initial
+        setDirection('RIGHT');
+        window.addEventListener('resize', () => {
+            // recalc scale if houses exist
+            if (requests.length > 0) {
+                scale = (road.offsetWidth - 60) / (MAX_TRACK || 1);
+                // reposition houses
+                document.querySelectorAll('.house').forEach(h => {
+                    const pos = parseInt(h.getAttribute('data-position'));
+                    h.style.left = (pos * scale) + 30 + "px";
+                });
+                // reposition car according to head input
+                const hv = parseInt(headInput.value) || 0;
+                car.style.left = (hv * scale) + 30 + "px";
+            }
+            initializeGraph();
+        });
+    });
+    </script>
+</body>
+</html>
