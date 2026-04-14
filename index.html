@@ -8,6 +8,62 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: linear-gradient(135deg,#0c0e2b,#1a1f38,#2a2f4c); color:#fff; min-height:100vh; padding:20px; position:relative; overflow-x:hidden; }
+
+        /* Animated background elements */
+        .bg-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(58, 134, 255, 0.05);
+            animation: float 15s infinite linear;
+        }
+
+        .bg-circle:nth-child(1) {
+            width: 300px;
+            height: 300px;
+            top: 10%;
+            left: 5%;
+            animation-delay: 0s;
+        }
+
+        .bg-circle:nth-child(2) {
+            width: 200px;
+            height: 200px;
+            top: 60%;
+            right: 10%;
+            animation-delay: 5s;
+            animation-direction: reverse;
+        }
+
+        .bg-circle:nth-child(3) {
+            width: 150px;
+            height: 150px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+            }
+            100% {
+                transform: translateY(0) rotate(360deg);
+            }
+        }
+
         .container { max-width:1600px; margin:0 auto; display:flex; flex-direction:column; gap:25px; }
         header { text-align:center; padding:20px 0; border-bottom:2px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); border-radius:15px; backdrop-filter:blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.2); position:relative; overflow:hidden; }
         header::before { content:''; position:absolute; top:0; left:0; width:100%; height:3px; background:linear-gradient(90deg,#ff7e5f,#feb47b,#3a86ff); }
@@ -18,15 +74,19 @@
         .car-indicator{width:14px;height:14px;background:#ff4757;border-radius:50%;box-shadow:0 0 8px rgba(255,71,87,0.7);}
         .house-indicator{width:14px;height:14px;background:#3742fa;border-radius:2px;box-shadow:0 0 8px rgba(55,66,250,0.7);}
         .main-content { display:grid; grid-template-columns:1fr 2fr; gap:30px; }
-        .control-panel { background:linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03)); border-radius:15px; padding:20px; box-shadow:0 8px 32px rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); }
+        .control-panel { background:linear-gradient(145deg,rgba(255,255,255,0.1),rgba(255,255,255,0.05)); border-radius:15px; padding:25px; box-shadow:0 8px 32px rgba(0,0,0,0.2); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); transition:transform 0.3s ease; }
+        .control-panel:hover { transform:translateY(-5px); }
         .input-group { margin-bottom:16px; }
         label { display:block; margin-bottom:8px; color:#a8dadc; font-weight:500; }
-        input[type="text"], input[type="number"] { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.12); background:rgba(0,0,0,0.35); color:#fff; }
-        .btn { padding:10px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:600; margin-right:8px; margin-bottom:8px; }
-        .btn-primary { background:linear-gradient(135deg,#3a86ff,#4361ee); color:#fff; box-shadow:0 4px 15px rgba(58,134,255,0.35); }
+        input[type="text"], input[type="number"] { width:100%; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); background:rgba(0,0,0,0.3); color:#fff; transition:all 0.3s ease; }
+        input[type="text"]:focus, input[type="number"]:focus { outline:none; border-color:#3a86ff; box-shadow:0 0 0 2px rgba(58,134,255,0.3); }
+        .btn { padding:12px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600; margin-right:8px; margin-bottom:8px; transition:all 0.3s ease; letter-spacing:0.5px; }
+        .btn-primary { background:linear-gradient(135deg,#3a86ff,#4361ee); color:#fff; box-shadow:0 4px 15px rgba(58,134,255,0.4); }
+        .btn-primary:hover { background:linear-gradient(135deg,#4361ee,#3a0ca3); transform:translateY(-2px); box-shadow:0 6px 20px rgba(58,134,255,0.6); }
         .algorithms { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
-        .btn-algorithm { background:rgba(255,255,255,0.06); padding:12px; border-radius:10px; text-align:center; cursor:pointer; border:1px solid rgba(255,255,255,0.06); }
-        .btn-algorithm.active{ background:linear-gradient(135deg,rgba(58,134,255,0.35),rgba(67,97,238,0.4)); box-shadow:0 0 12px rgba(58,134,255,0.25); }
+        .btn-algorithm { background:rgba(255,255,255,0.1); padding:12px; border-radius:10px; text-align:center; cursor:pointer; border:1px solid rgba(255,255,255,0.1); transition:all 0.3s ease; }
+        .btn-algorithm:hover { background:rgba(255,255,255,0.2); transform:translateY(-3px); box-shadow:0 5px 15px rgba(0,0,0,0.2); }
+        .btn-algorithm.active{ background:linear-gradient(135deg,rgba(58,134,255,0.4),rgba(67,97,238,0.6)); border-color:#3a86ff; box-shadow:0 0 15px rgba(58,134,255,0.5); }
         /* Direction toggle (Style B) */
         .direction-row { display:flex; align-items:center; gap:12px; margin-top:16px; }
         .dir-label { color:#a8dadc; font-weight:600; }
@@ -34,8 +94,9 @@
         .toggle button { background:transparent; border:none; color:#a8dadc; padding:8px 12px; border-radius:999px; cursor:pointer; font-weight:600; }
         .toggle button.active { background:linear-gradient(135deg,#3a86ff,#4361ee); color:#fff; box-shadow:0 4px 12px rgba(58,134,255,0.25); }
         .visualization-area { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-        .visualization { background:linear-gradient(145deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03)); border-radius:15px; padding:18px; box-shadow:0 8px 32px rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; }
-        .road-container { position:relative; height:200px; background:rgba(0,0,0,0.28); border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:inset 0 0 10px rgba(0,0,0,0.5); }
+        .visualization { background:linear-gradient(145deg,rgba(255,255,255,0.1),rgba(255,255,255,0.05)); border-radius:15px; padding:25px; box-shadow:0 8px 32px rgba(0,0,0,0.2); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); display:flex; flex-direction:column; transition:transform 0.3s ease; }
+        .visualization:hover { transform:translateY(-5px); }
+        .road-container { position:relative; height:200px; background:rgba(0,0,0,0.3); border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:inset 0 0 10px rgba(0,0,0,0.5); }
         .road { position:absolute; top:50%; left:0; right:0; height:30px; background:#3a506b; transform:translateY(-50%); display:flex; align-items:center; }
         .road-line { position:absolute; top:50%; left:0; right:0; height:2px; background:repeating-linear-gradient(90deg, transparent, transparent 10px, rgba(255,255,255,0.7) 10px, rgba(255,255,255,0.7) 20px); transform:translateY(-50%); }
         .car { position:absolute; top:50%; left:10%; width:60px; height:40px; background:#ff4757; border-radius:8px 8px 0 0; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:bold; box-shadow:0 0 15px rgba(255,71,87,0.7); z-index:10; transition:left 1s linear; }
@@ -58,6 +119,11 @@
     </style>
 </head>
 <body>
+    <div class="bg-elements">
+        <div class="bg-circle"></div>
+        <div class="bg-circle"></div>
+        <div class="bg-circle"></div>
+    </div>
     <div class="container">
         <header>
             <h1>Disk Head Adventure – Premium Edition</h1>
@@ -405,7 +471,7 @@
                 seq = [...left.reverse()];
                 if (seq.length === 0 || seq[seq.length-1] !== minTrack) seq.push(minTrack);
                 seq.push(maxTrack);
-                seq.push(...right);
+                seq.push(...right.reverse());
             }
 
             return seq;
